@@ -1,4 +1,6 @@
 data/
+!data/.keep
 models/
-*.ipynb
-olddata/
+!models/.keep
+notebooks/*.ipynb
+notebooks/.ipynb_checkpoints

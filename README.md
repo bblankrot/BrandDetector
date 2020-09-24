@@ -1,5 +1,5 @@
-# Insight_Project_Framework
-Framework for machine learning projects at Insight Data Science.
+# Brand detector
+Project for detecting brand names in transcribed ads.
 
 ## Motivation for this project format:
 - **Insight_Project_Framework** : Put all source code for production within structured directory

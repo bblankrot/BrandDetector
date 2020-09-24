@@ -10,8 +10,7 @@ def load_test_set(filename, pct):
     return df.iloc[:n_rows, :]
 
 
-def predict(model_dir, df):
-    nlp = spacy.load(model_dir)
+def predict(nlp, df):
     preds = []
     for _, row in df.iterrows():
         doc = nlp(row["transcription"])
@@ -25,8 +24,7 @@ def predict(model_dir, df):
     return df
 
 
-def predict_score(model_dir, df, beam_width=16, beam_density=0.0001, threshold=0.2):
-    nlp = spacy.load(model_dir)
+def predict_score(nlp, df, beam_width=16, beam_density=0.0001, threshold=0.2):
     preds = []
     for _, row in df.iterrows():
         with nlp.disable_pipes("ner"):
@@ -66,9 +64,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     df_test = load_test_set("../data/preprocessed/test_data.json", args.pct)
+    nlp = spacy.load(args.dir)
     if args.score:
-        df_test = predict_score(args.dir, df_test)
+        df_test = predict_score(nlp, df_test)
     else:
-        df_test = predict(args.dir, df_test)
+        df_test = predict(nlp, df_test)
     df_test.to_json("../data/preprocessed/test_data_pred.json")
 

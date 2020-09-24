@@ -11,6 +11,14 @@ from spacy.util import minibatch, compounding
 import argparse
 import json
 import time
+from brand_detector.load_and_eval import predict
+
+def preprocess(df):
+    df["brand"] = df["brand"].str.replace(r"-tier[1-3]$", "", regex=True)
+    df.loc[df["brand"] == "Zico", "brand"] = "Geico"
+    df.loc[df["brand"].str.lower() == "the home depot", "brand"] = "Home Depot"
+    df.loc[df["brand"] == "t", "brand"] = "T-Mobile"
+    return df
 
 
 def find_brands(brand, text, ignore_case=True, dehyphenate=True):
@@ -20,8 +28,7 @@ def find_brands(brand, text, ignore_case=True, dehyphenate=True):
     # "U.S. Waterproofing" <-> "US Waterproofing"
     if brand == "":
         return []
-    brand_d = brand.replace("-tier1", "").replace("-tier2", "").replace("-tier3", "")
-    brand_d = brand_d.replace("-", " ") if dehyphenate else brand
+    brand_d = brand.replace("-", " ") if dehyphenate else brand
     text_d = text.replace("-", " ") if dehyphenate else text
     # if there's punctuation at the beginning or end of the brand, remove it
     inner_brand = re.match(r"([a-zA-Z0-9()].*[a-zA-Z0-9()])", brand_d)
@@ -70,16 +77,24 @@ def df_to_entity_list(df):
 def generate_train_test_set(filename, pct):
     df = pd.read_json(filename)
     df = find_brands_in_df(df)
-    df = df[df["brand_matches"].str.len() > 0]
-    num_rows = df.shape[0]
+    df_train_test = df[df["brand_matches"].str.len() > 0]
+    num_rows = df_train_test.shape[0]
     num_train = int(round(num_rows * pct))
-    df_train, df_test = df.iloc[:num_train, :], df.iloc[num_train:, :].copy()
+    df_train, df_test = df.iloc[:num_train, :].copy(), df.iloc[num_train:, :].copy()
+    df_dirty = df[df["brand_matches"].str.len() == 0].copy()
 
     entity_list = df_to_entity_list(df_train)
 
     seen_set = set(df_train["brand"].to_numpy())
     df_test["seen_in_training"] = df_test["brand"].apply(lambda x: x in seen_set)
-    return entity_list, df_test
+    # not strictly necessary, since dirty dataset does not have brand name in transcript, but might be interesting
+    df_dirty["seen_in_training"] = df_dirty["brand"].apply(lambda x: x in seen_set)
+    return entity_list, df_test, df_dirty
+
+
+def calculate_accuracy(nlp, val):
+
+    return 0.0
 
 
 def train_spacy(
@@ -89,6 +104,7 @@ def train_spacy(
     new_model_name="brand",
     output_dir=str(Path.home() / "models"),
     n_iter=30,
+    val=None,
 ):
     """Set up the pipeline and entity recognizer, and train the new entity."""
     output_dir = Path(output_dir)
@@ -125,10 +141,12 @@ def train_spacy(
         sizes = compounding(1.0, 4.0, 1.001)
         # batch up the examples using spaCy's minibatch
         start_time = time.time()
+        history = []
         for i in range(n_iter):
+            losses = {}
+            val_acc = {}
             random.shuffle(entity_list)
             batches = minibatch(entity_list, size=sizes)
-            losses = {}
             for batch in batches:
                 texts, annotations = zip(*batch)
                 nlp.update(texts, annotations, sgd=optimizer, drop=0.35, losses=losses)
@@ -140,6 +158,10 @@ def train_spacy(
             # save to disk after each iteration
             epoch_path = output_dir / "{0}_epoch_{1}".format(new_model_name, i)
             nlp.to_disk(epoch_path)
+
+            if val is not None:
+                val_acc = calculate_accuracy(nlp, val)
+            history.append({"losses": losses, "val_accuracy": val_acc})
 
     # test the trained model
     test_text = (
@@ -164,8 +186,8 @@ def train_spacy(
     doc2 = nlp2(test_text)
     for ent in doc2.ents:
         print(ent.label_, ent.text)
-    with open(output_dir / "history.json", "w") as fp:
-        json.dump(losses, fp)
+    with open(output_dir / new_model_name / "history.json", "w") as fp:
+        json.dump(history, fp)
 
     return nlp
 
@@ -205,6 +227,12 @@ if __name__ == "__main__":
         ),
         action="store_true",
     )
+    parser.add_argument(
+        "-v",
+        "--validate",
+        help=("calculate accuracy on test/val set during training"),
+        action="store_true",
+    )
     args = parser.parse_args()
 
     if args.gpu:
@@ -213,14 +241,16 @@ if __name__ == "__main__":
         has_gpu = spacy.prefer_gpu()
         print("Using GPU" if has_gpu else "No GPU, training on CPU")
 
-    entity_list, df_test = generate_train_test_set(
+    entity_list, df_test, df_dirty = generate_train_test_set(
         "../data/raw/listen_demo_records.json", args.pct
     )
+    df_test.to_json("../data/preprocessed/test_data.json")
+    df_dirty.to_json("../data/preprocessed/dirty_data.json")
     train_spacy(
         entity_list,
         model=args.model,
         new_model_name=args.name,
         output_dir=args.output,
         n_iter=args.iters,
+        val=(df_test if args.validate else None),
     )
-    df_test.to_json("../data/preprocessed/test_data.json")
