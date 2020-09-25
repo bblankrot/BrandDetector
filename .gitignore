@@ -4,3 +4,5 @@ models/
 !models/.keep
 notebooks/*.ipynb
 notebooks/.ipynb_checkpoints
+__pycache__/
+baseline_corrects.json

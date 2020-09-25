@@ -1,6 +1,6 @@
 import numpy.testing
 
-from brand_detector.train_spacy import find_brands
+import brand_detector as bd
 
 if __name__ == "__main__":
     1

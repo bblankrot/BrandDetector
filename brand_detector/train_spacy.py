@@ -1,65 +1,17 @@
 import pandas as pd
 import numpy as np
-
-# from collections import defaultdict
 import re
 import random
 import warnings
 from pathlib import Path
 import spacy
 from spacy.util import minibatch, compounding
-import argparse
 import json
 import time
-from brand_detector.load_and_eval import predict
+import statistics
 
-def preprocess(df):
-    df["brand"] = df["brand"].str.replace(r"-tier[1-3]$", "", regex=True)
-    df.loc[df["brand"] == "Zico", "brand"] = "Geico"
-    df.loc[df["brand"].str.lower() == "the home depot", "brand"] = "Home Depot"
-    df.loc[df["brand"] == "t", "brand"] = "T-Mobile"
-    return df
-
-
-def find_brands(brand, text, ignore_case=True, dehyphenate=True):
-    # TODO: handle edge cases such as: LV (Liverpool Victoria),
-    # "ashley home store" <-> "ashley homestore"
-    # "Macy's" in brand but "Macys" in string
-    # "U.S. Waterproofing" <-> "US Waterproofing"
-    if brand == "":
-        return []
-    brand_d = brand.replace("-", " ") if dehyphenate else brand
-    text_d = text.replace("-", " ") if dehyphenate else text
-    # if there's punctuation at the beginning or end of the brand, remove it
-    inner_brand = re.match(r"([a-zA-Z0-9()].*[a-zA-Z0-9()])", brand_d)
-    if inner_brand is None:
-        if len(brand_d) > 1:
-            raise RuntimeError("encountered problem for brand: {}".format(brand))
-    else:
-        brand_d = inner_brand[0]
-    brand_d = "\\b" + re.escape(brand_d) + "\\b"
-    if ignore_case:
-        try:
-            found_iters = re.finditer(brand_d, text_d, re.IGNORECASE)
-        except:
-            raise RuntimeError(
-                "encountered problem for brand: {} ({})".format(brand, brand_d)
-            )
-    else:
-        found_iters = re.finditer(brand_d, text_d)
-    matches = []
-    for match in found_iters:
-        s, e = match.start(), match.end()
-        matches.append((s, e))
-    return matches
-
-
-def find_brands_in_df(df):
-    df2 = df.copy()
-    df2["brand_matches"] = df2.apply(
-        lambda row: find_brands(row["brand"], row["transcription"]), axis=1
-    )
-    return df2
+from .utils import preprocess, find_brands, find_brands_in_df, generate_train_test_set
+from .predict import predict
 
 
 def df_to_entity_list(df):
@@ -74,27 +26,18 @@ def df_to_entity_list(df):
     return train
 
 
-def generate_train_test_set(filename, pct):
-    df = pd.read_json(filename)
-    df = find_brands_in_df(df)
-    df_train_test = df[df["brand_matches"].str.len() > 0]
-    num_rows = df_train_test.shape[0]
-    num_train = int(round(num_rows * pct))
-    df_train, df_test = df.iloc[:num_train, :].copy(), df.iloc[num_train:, :].copy()
-    df_dirty = df[df["brand_matches"].str.len() == 0].copy()
-
-    entity_list = df_to_entity_list(df_train)
-
-    seen_set = set(df_train["brand"].to_numpy())
-    df_test["seen_in_training"] = df_test["brand"].apply(lambda x: x in seen_set)
-    # not strictly necessary, since dirty dataset does not have brand name in transcript, but might be interesting
-    df_dirty["seen_in_training"] = df_dirty["brand"].apply(lambda x: x in seen_set)
-    return entity_list, df_test, df_dirty
-
-
-def calculate_accuracy(nlp, val):
-
-    return 0.0
+def calculate_accuracy(nlp, df):
+    df = predict(nlp, df)
+    multimode = df["predictions"].apply(statistics.multimode)
+    acc = 0
+    for i, item in multimode.iteritems():
+        if not len(item):
+            continue
+        for it in item:
+            if find_brands(df["brand"][i], it):
+                acc += 1
+                break
+    return acc / df.shape[0]
 
 
 def train_spacy(
@@ -115,8 +58,8 @@ def train_spacy(
         nlp = spacy.load(model)  # load existing spaCy model
         print("Loaded model '%s'" % model)
     else:
-        nlp = spacy.load("en_core_web_sm")  # load base spaCy model
-        print("Loaded model '%s'" % model)
+        nlp = spacy.blank("en")  # create blank Language class
+        print("Created blank 'en' model")
     # Add entity recognizer to model if it's not in the pipeline
     # nlp.create_pipe works for built-ins that are registered with spaCy
     if "ner" not in nlp.pipe_names:
@@ -128,7 +71,10 @@ def train_spacy(
 
     ner.add_label(new_label)  # add new entity label to entity recognizer
 
-    optimizer = nlp.resume_training()
+    if model is None:
+        optimizer = nlp.begin_training()
+    else:
+        optimizer = nlp.resume_training()
     move_names = list(ner.move_names)
     # get names of other pipes to disable them during training
     pipe_exceptions = ["ner", "trf_wordpiecer", "trf_tok2vec"]
@@ -138,7 +84,7 @@ def train_spacy(
         # show warnings for misaligned entity spans once
         warnings.filterwarnings("once", category=UserWarning, module="spacy")
 
-        sizes = compounding(1.0, 4.0, 1.001)
+        sizes = compounding(4.0, 32.0, 1.001)
         # batch up the examples using spaCy's minibatch
         start_time = time.time()
         history = []
@@ -192,65 +138,3 @@ def train_spacy(
     return nlp
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Train spaCy model for brand detection."
-    )
-    parser.add_argument(
-        "-m", "--model", type=str, help="base model name", default="en_core_web_sm"
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        help="output model directory",
-        default=str("models"),
-    )
-    parser.add_argument(
-        "-n", "--name", type=str, help="output model name", default="brand_sm"
-    )
-    parser.add_argument(
-        "-i", "--iters", type=int, help="output model directory", default=10
-    )
-    parser.add_argument(
-        "-p",
-        "--pct",
-        type=float,
-        help="fraction of training data from entire labeled dataset",
-        default=0.01,
-    )
-    parser.add_argument(
-        "--gpu",
-        help=(
-            "require GPU (it is preferred either way, "
-            "but this raises an error if a GPU is unavailable)"
-        ),
-        action="store_true",
-    )
-    parser.add_argument(
-        "-v",
-        "--validate",
-        help=("calculate accuracy on test/val set during training"),
-        action="store_true",
-    )
-    args = parser.parse_args()
-
-    if args.gpu:
-        spacy.require_gpu()
-    else:
-        has_gpu = spacy.prefer_gpu()
-        print("Using GPU" if has_gpu else "No GPU, training on CPU")
-
-    entity_list, df_test, df_dirty = generate_train_test_set(
-        "../data/raw/listen_demo_records.json", args.pct
-    )
-    df_test.to_json("../data/preprocessed/test_data.json")
-    df_dirty.to_json("../data/preprocessed/dirty_data.json")
-    train_spacy(
-        entity_list,
-        model=args.model,
-        new_model_name=args.name,
-        output_dir=args.output,
-        n_iter=args.iters,
-        val=(df_test if args.validate else None),
-    )
