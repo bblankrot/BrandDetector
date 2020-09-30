@@ -3,6 +3,7 @@ import spacy
 import pandas as pd
 
 from brand_detector.predict import predict, predict_score
+from brand_detector.train_spacy import calculate_accuracy
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -24,5 +25,5 @@ if __name__ == "__main__":
     else:
         df_test = predict(nlp, df_test)
         df_test.to_json("data/preprocessed/test_data_pred.json")
-    
+        print(calculate_accuracy(df_test))
 

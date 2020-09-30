@@ -14,8 +14,7 @@ def find_brands(brand, text, ignore_case=True, dehyphenate=True):
     # if there's punctuation at the beginning or end of the brand, remove it
     inner_brand = re.match(r"([a-zA-Z0-9()].*[a-zA-Z0-9()])", brand_d)
     if inner_brand is None:
-        if len(brand_d) > 1:
-            raise RuntimeError("encountered problem for brand: {}".format(brand))
+        raise RuntimeError("encountered empty brand: {}".format(brand))
     else:
         brand_d = inner_brand[0]
     brand_d = "\\b" + re.escape(brand_d) + "\\b"
@@ -43,17 +42,45 @@ def find_brands_in_df(df):
     return df2
 
 
-def preprocess(df):
-    df["brand"] = df["brand"].str.replace(r"-tier[1-3]$", "", regex=True)
+def temporary_credit_union_fix(row):
+    if row["brand"].lower() != "credit union":
+        return row["brand"]
+    possible_unions = ["Belco", "Navy Federal", "Affinity", "Apple Federal", "Midland"]
+    for cu in possible_unions:
+        if (
+            re.search(
+                "\\b" + cu + " Credit Union\\b", row["transcription"], re.IGNORECASE
+            )
+            is not None
+        ):
+            # return only first, since this is a temporary fix, edge cases do not matter as much
+            return cu + " Credit Union"
+    return "Credit Union"
+
+
+def preprocess(df, deapostrophe=False):
+    # remove rows with no brand
+    df = df[(df["brand"].notna()) & (df["brand"] != "")].copy()
+    # remove dealership ranking
+    df.loc[:, "brand"] = df["brand"].str.replace(r"-tier[1-3]$", "", regex=True)
+    # remove incidental mistakes
     df.loc[df["brand"] == "Zico", "brand"] = "Geico"
     df.loc[df["brand"].str.lower() == "the home depot", "brand"] = "Home Depot"
     df.loc[df["brand"] == "t", "brand"] = "T-Mobile"
+    # remove leading/trailing whitespace
+    df.loc[:, "brand"] = df["brand"].str.strip()
+    # temporarily hack together some credit union labels, and remove non-obvious ones
+    df.loc[:, "brand"] = df.apply(temporary_credit_union_fix, axis=1)
+    df = df[df["brand"].str.lower() != "credit union"].copy()
+    if deapostrophe:
+        for col in ["brand", "transcription"]:
+            df.loc[:, col] = df[col].str.replace("'", "")
     return df
 
 
-def generate_train_test_set(filename, pct):
+def generate_train_test_set(filename, pct, deapostrophe):
     df = pd.read_json(filename)
-    df = preprocess(df)
+    df = preprocess(df, deapostrophe=deapostrophe)
     df = find_brands_in_df(df)
     df_train_test = df[df["brand_matches"].str.len() > 0]
     num_rows = df_train_test.shape[0]
@@ -64,8 +91,14 @@ def generate_train_test_set(filename, pct):
     )
     df_dirty = df[df["brand_matches"].str.len() == 0].copy()
 
-    seen_set = set(df_train["brand"].to_numpy())
-    df_test["seen_in_training"] = df_test["brand"].apply(lambda x: x in seen_set)
+    seen_set = set(
+        df_train["brand"].str.lower().to_numpy()
+    )  # has this brand been seen as is?
+    df_test["seen_in_training"] = df_test["brand"].apply(
+        lambda x: x.lower() in seen_set
+    )
     # not strictly necessary, since dirty dataset does not have brand name in transcript, but might be interesting
-    df_dirty["seen_in_training"] = df_dirty["brand"].apply(lambda x: x in seen_set)
+    df_dirty["seen_in_training"] = df_dirty["brand"].apply(
+        lambda x: x.lower() in seen_set
+    )
     return df_train, df_test, df_dirty

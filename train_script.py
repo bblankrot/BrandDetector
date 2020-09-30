@@ -7,9 +7,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Train spaCy model for brand detection."
     )
-    parser.add_argument(
-        "-m", "--model", type=str, help="base model name", default=None
-    )
+    parser.add_argument("-m", "--model", type=str, help="base model name", default=None)
     parser.add_argument(
         "-o",
         "--output",
@@ -44,6 +42,12 @@ if __name__ == "__main__":
         help=("calculate accuracy on test/val set during training"),
         action="store_true",
     )
+    parser.add_argument(
+        "-a",
+        "--apostrophe",
+        help=("remove apostrophes from brand and transcription"),
+        action="store_true",
+    )
     args = parser.parse_args()
 
     if args.gpu:
@@ -53,7 +57,7 @@ if __name__ == "__main__":
         print("Using GPU" if has_gpu else "No GPU, training on CPU")
 
     df_train, df_test, df_dirty = brand_detector.utils.generate_train_test_set(
-        "data/raw/listen_demo_records.json", args.pct
+        "data/raw/listen_demo_records.json", args.pct, args.apostrophe
     )
     entity_list = brand_detector.train_spacy.df_to_entity_list(df_train)
     df_test.to_json("data/preprocessed/test_data.json")

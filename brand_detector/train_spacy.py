@@ -26,8 +26,7 @@ def df_to_entity_list(df):
     return train
 
 
-def calculate_accuracy(nlp, df):
-    df = predict(nlp, df)
+def calculate_accuracy(df):
     multimode = df["predictions"].apply(statistics.multimode)
     acc = 0
     for i, item in multimode.iteritems():
@@ -106,7 +105,8 @@ def train_spacy(
             nlp.to_disk(epoch_path)
 
             if val is not None:
-                val_acc = calculate_accuracy(nlp, val)
+                preds = predict(nlp, val)
+                val_acc = calculate_accuracy(preds)
             history.append({"losses": losses, "val_accuracy": val_acc})
 
     # test the trained model
@@ -136,5 +136,4 @@ def train_spacy(
         json.dump(history, fp)
 
     return nlp
-
 
