@@ -26,7 +26,7 @@ if __name__ == "__main__":
         "--pct",
         type=float,
         help="fraction of training data from entire labeled dataset",
-        default=0.01,
+        default=0.8,
     )
     parser.add_argument(
         "--gpu",
@@ -48,6 +48,7 @@ if __name__ == "__main__":
         help=("remove apostrophes from brand and transcription"),
         action="store_true",
     )
+    parser.add_argument("--data", help=("add additional data"), default=None)
     args = parser.parse_args()
 
     if args.gpu:
@@ -57,7 +58,10 @@ if __name__ == "__main__":
         print("Using GPU" if has_gpu else "No GPU, training on CPU")
 
     df_train, df_test, df_dirty = brand_detector.utils.generate_train_test_set(
-        "data/raw/listen_demo_records.json", args.pct, args.apostrophe
+        "data/raw/listen_demo_records.json",
+        args.pct,
+        args.apostrophe,
+        additional_data=args.data,
     )
     entity_list = brand_detector.train_spacy.df_to_entity_list(df_train)
     df_test.to_json("data/preprocessed/test_data.json")

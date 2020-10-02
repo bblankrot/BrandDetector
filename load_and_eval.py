@@ -2,7 +2,7 @@ import argparse
 import spacy
 import pandas as pd
 
-from brand_detector.predict import predict, predict_score
+from brand_detector.predict import predict, predict_score, preds2corrects
 from brand_detector.train_spacy import calculate_accuracy
 
 if __name__ == "__main__":
@@ -24,6 +24,9 @@ if __name__ == "__main__":
         df_test.to_json("data/preprocessed/test_data_pred_s.json")
     else:
         df_test = predict(nlp, df_test)
+        df_test["corrects"], val_acc = preds2corrects(
+            df_test["predictions"], df_test["brand"]
+        )
         df_test.to_json("data/preprocessed/test_data_pred.json")
         print(calculate_accuracy(df_test))
 

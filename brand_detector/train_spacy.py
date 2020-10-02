@@ -10,8 +10,8 @@ import json
 import time
 import statistics
 
-from .utils import preprocess, find_brands, find_brands_in_df, generate_train_test_set
-from .predict import predict
+from .utils import find_brands
+from .predict import predict, preds2corrects
 
 
 def df_to_entity_list(df):
@@ -106,7 +106,7 @@ def train_spacy(
 
             if val is not None:
                 preds = predict(nlp, val)
-                val_acc = calculate_accuracy(preds)
+                _, val_acc = preds2corrects(preds["predictions"], preds["brand"])
             history.append({"losses": losses, "val_accuracy": val_acc})
 
     # test the trained model

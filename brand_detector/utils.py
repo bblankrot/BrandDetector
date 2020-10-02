@@ -66,6 +66,7 @@ def preprocess(df, deapostrophe=False):
     # remove incidental mistakes
     df.loc[df["brand"] == "Zico", "brand"] = "Geico"
     df.loc[df["brand"].str.lower() == "the home depot", "brand"] = "Home Depot"
+    df.loc[(df["brand"] == "home") & (df.index == 5019), "brand"] = "Home Depot"
     df.loc[df["brand"] == "t", "brand"] = "T-Mobile"
     # remove leading/trailing whitespace
     df.loc[:, "brand"] = df["brand"].str.strip()
@@ -78,18 +79,29 @@ def preprocess(df, deapostrophe=False):
     return df
 
 
-def generate_train_test_set(filename, pct, deapostrophe):
+def generate_train_test_set(filename, pct, deapostrophe, additional_data=None):
     df = pd.read_json(filename)
     df = preprocess(df, deapostrophe=deapostrophe)
     df = find_brands_in_df(df)
-    df_train_test = df[df["brand_matches"].str.len() > 0]
+    df_train_test = df[df["brand_matches"].apply(len) > 0]
     num_rows = df_train_test.shape[0]
     num_train = int(round(num_rows * pct))
     df_train, df_test = (
         df_train_test.iloc[:num_train, :].copy(),
         df_train_test.iloc[num_train:, :].copy(),
     )
-    df_dirty = df[df["brand_matches"].str.len() == 0].copy()
+    df_dirty = df[df["brand_matches"].apply(len) == 0].copy()
+
+    if additional_data is not None:
+        df_add = pd.read_json(additional_data)
+        if deapostrophe:
+            for col in ["brand", "transcription"]:
+                df_add.loc[:, col] = df_add[col].str.replace("'", "")
+        df_add = find_brands_in_df(df_add)
+        df_add = df_add[df_add["brand_matches"].apply(len) > 0]
+
+        df_add.index = ["n{}".format(ind) for ind in df_add.index]
+        df_train = pd.concat([df_train, df_add], axis=0)
 
     seen_set = set(
         df_train["brand"].str.lower().to_numpy()
@@ -97,8 +109,15 @@ def generate_train_test_set(filename, pct, deapostrophe):
     df_test["seen_in_training"] = df_test["brand"].apply(
         lambda x: x.lower() in seen_set
     )
-    # not strictly necessary, since dirty dataset does not have brand name in transcript, but might be interesting
+    # not strictly necessary, since dirty dataset does not have brand name in
+    # transcript, but might be interesting
     df_dirty["seen_in_training"] = df_dirty["brand"].apply(
         lambda x: x.lower() in seen_set
     )
     return df_train, df_test, df_dirty
+
+
+def synthesize(
+    df, lowercase=False,
+):
+    return
