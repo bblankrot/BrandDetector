@@ -89,7 +89,7 @@ def train_spacy(
         history = []
         for i in range(n_iter):
             losses = {}
-            val_acc = {}
+            val_acc = 0
             random.shuffle(entity_list)
             batches = minibatch(entity_list, size=sizes)
             for batch in batches:

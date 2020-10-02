@@ -1,5 +1,6 @@
 import re
 import statistics
+import warnings
 
 
 def predict(nlp, df):
@@ -37,9 +38,14 @@ def predict_score(nlp, df, beam_width=16, beam_density=0.0001, threshold=0.2):
 
 def equal_brands(prediction, brand):
     def inner_text(text):
-        inner = re.search(r"(\w.*\w)", text.replace("-", " ").strip().lower())
-        if inner is None:
-            raise ValueError("Encountered bad brand name")
+        inner = text.replace("-", " ").strip().lower()
+        inner = re.sub(r"\W*$", "", re.sub(r"^\W*", "", text))
+        if inner == "":
+            warnings.warn(
+                "Encountered bad prediction/brand: {} / {}".format(prediction, brand),
+                RuntimeWarning,
+            )
+            return None
         return inner[0]
 
     prediction_d = inner_text(prediction)
