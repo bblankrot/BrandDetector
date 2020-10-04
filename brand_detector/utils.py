@@ -92,6 +92,12 @@ def generate_train_test_set(filename, pct, deapostrophe, additional_data=None):
     )
     df_dirty = df[df["brand_matches"].apply(len) == 0].copy()
 
+    df_train_lower = df_train[["brand", "transcription", "brand_matches"]].copy()
+    for col in ["brand", "transcription"]:
+        df_train_lower[col] = df_train_lower[col].str.lower()
+    df_train_lower.index = [f"l{ind}" for ind in df_train_lower.index]
+    df_train = pd.concat([df_train, df_train_lower], axis=0)
+
     if additional_data is not None:
         df_add = pd.read_json(additional_data)
         if deapostrophe:
@@ -100,7 +106,7 @@ def generate_train_test_set(filename, pct, deapostrophe, additional_data=None):
         df_add = find_brands_in_df(df_add)
         df_add = df_add[df_add["brand_matches"].apply(len) > 0]
 
-        df_add.index = ["n{}".format(ind) for ind in df_add.index]
+        df_add.index = [f"n{ind}" for ind in df_add.index]
         df_train = pd.concat([df_train, df_add], axis=0)
 
     seen_set = set(

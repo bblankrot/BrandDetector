@@ -74,7 +74,6 @@ def train_spacy(
         optimizer = nlp.begin_training()
     else:
         optimizer = nlp.resume_training()
-    move_names = list(ner.move_names)
     # get names of other pipes to disable them during training
     pipe_exceptions = ["ner", "trf_wordpiecer", "trf_tok2vec"]
     other_pipes = [pipe for pipe in nlp.pipe_names if pipe not in pipe_exceptions]
@@ -107,31 +106,14 @@ def train_spacy(
             if val is not None:
                 preds = predict(nlp, val)
                 _, val_acc = preds2corrects(preds["predictions"], preds["brand"])
+                print("Val accuracy", val_acc)
             history.append({"losses": losses, "val_accuracy": val_acc})
-
-    # test the trained model
-    test_text = (
-        "Did you know switching to Geico could save you 15 percent "
-        "or more on car insurance?"
-    )
-    doc = nlp(test_text)
-    print("Entities in '%s'" % test_text)
-    for ent in doc.ents:
-        print(ent.label_, ent.text)
 
     # save model to output directory
     nlp.meta["name"] = new_model_name  # rename model
     nlp.to_disk(output_dir / new_model_name)
     print("Saved model to", output_dir)
 
-    # test the saved model
-    print("Loading from", output_dir)
-    nlp2 = spacy.load(output_dir / new_model_name)
-    # Check the classes have loaded back consistently
-    assert nlp2.get_pipe("ner").move_names == move_names
-    doc2 = nlp2(test_text)
-    for ent in doc2.ents:
-        print(ent.label_, ent.text)
     with open(output_dir / new_model_name / "history.json", "w") as fp:
         json.dump(history, fp)
 
