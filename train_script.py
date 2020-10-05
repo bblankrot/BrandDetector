@@ -29,17 +29,9 @@ if __name__ == "__main__":
         default=0.8,
     )
     parser.add_argument(
-        "--gpu",
-        help=(
-            "require GPU (it is preferred either way, "
-            "but this raises an error if a GPU is unavailable)"
-        ),
-        action="store_true",
-    )
-    parser.add_argument(
         "-v",
         "--validate",
-        help=("calculate accuracy on test/val set during training"),
+        help=("calculate accuracy on test set during training"),
         action="store_true",
     )
     parser.add_argument(
@@ -51,11 +43,8 @@ if __name__ == "__main__":
     parser.add_argument("--data", help=("add additional data"), default=None)
     args = parser.parse_args()
 
-    if args.gpu:
-        spacy.require_gpu()
-    else:
-        has_gpu = spacy.prefer_gpu()
-        print("Using GPU" if has_gpu else "No GPU, training on CPU")
+    has_gpu = spacy.prefer_gpu()
+    print("Using GPU" if has_gpu else "No GPU, training on CPU")
 
     df_train, df_test, df_dirty = brand_detector.utils.generate_train_test_set(
         "data/raw/listen_demo_records.json",
