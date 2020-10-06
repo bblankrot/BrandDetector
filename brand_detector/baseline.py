@@ -23,7 +23,6 @@ def baseline_accuracy_row(brands_list, row):
         for _ in matches:
             preds.append(brand)
     # now find most common value(s)
-    preds = statistics.multimode(preds)
+    preds = statistics.multimode([s.lower().replace("-", " ") for s in preds])
     correct = any(equal_brands(pred, row["brand"]) for pred in preds)
-    # correct = any(row["brand"].lower() == pred.lower() for pred in preds)
     return pd.Series([preds, correct], index=["bl_preds", "bl_corrects"])

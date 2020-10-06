@@ -39,14 +39,14 @@ def predict_score(nlp, df, beam_width=16, beam_density=0.0001, threshold=0.2):
 def equal_brands(prediction, brand):
     def inner_text(text):
         inner = text.replace("-", " ").strip().lower()
-        inner = re.sub(r"\W*$", "", re.sub(r"^\W*", "", text))
+        inner = re.sub(r"\W*$", "", re.sub(r"^\W*", "", inner))
         if inner == "":
             warnings.warn(
                 "Encountered bad prediction/brand: {} / {}".format(prediction, brand),
                 RuntimeWarning,
             )
             return None
-        return inner[0]
+        return inner
 
     prediction_d = inner_text(prediction)
     brand_d = inner_text(brand)
@@ -54,7 +54,9 @@ def equal_brands(prediction, brand):
 
 
 def preds2corrects(predictions, brands):
-    multimodes = predictions.apply(statistics.multimode)
+    #check if correct prediction is one of most common
+    multimodes = predictions.apply(lambda a: [pred.lower().replace("-", " ") for pred in a])
+    multimodes = multimodes.apply(statistics.multimode)
     acc = 0
     corrects = []
     for i, item in multimodes.iteritems():

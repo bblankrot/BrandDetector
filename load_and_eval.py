@@ -28,5 +28,4 @@ if __name__ == "__main__":
             df_test["predictions"], df_test["brand"]
         )
         df_test.to_json("data/preprocessed/test_data_pred.json")
-        print(calculate_accuracy(df_test))
-
+        print(val_acc)
