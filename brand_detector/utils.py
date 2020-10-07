@@ -97,7 +97,7 @@ def generate_lower(df_train):
     df_train_lower.index = [f"l{ind}" for ind in df_train_lower.index]
     return df_train_lower
 
-def generate_train_test_set(filename, pct, deapostrophe, additional_data=None, n_synth=0):
+def generate_train_test_set(filename, pct, deapostrophe, additional_data=None, n_synth=0, lowercase=True):
     df = pd.read_json(filename)
     df = preprocess(df, deapostrophe=deapostrophe)
     df = find_brands_in_df(df)
@@ -112,8 +112,9 @@ def generate_train_test_set(filename, pct, deapostrophe, additional_data=None, n
     )
     df_dirty = df[df["brand_matches"].apply(len) == 0].copy()
 
-    # df_lower = generate_lower(df_train)
-    # df_train = pd.concat([df_train, df_lower], axis=0)
+    if lowercase:
+        df_lower = generate_lower(df_train)
+        df_train = pd.concat([df_train, df_lower], axis=0)
 
     if additional_data is not None:
         df_add = generate_additional_data(additional_data, deapostrophe)
@@ -131,7 +132,7 @@ def generate_train_test_set(filename, pct, deapostrophe, additional_data=None, n
         lambda x: x.lower() in seen_set
     )
     # not strictly necessary, since dirty dataset does not have brand name in
-    # transcript, but might be interesting
+    # transcript
     df_dirty["seen_in_training"] = df_dirty["brand"].apply(
         lambda x: x.lower() in seen_set
     )
