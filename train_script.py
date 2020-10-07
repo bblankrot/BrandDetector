@@ -40,6 +40,9 @@ if __name__ == "__main__":
         help=("remove apostrophes from brand and transcription"),
         action="store_true",
     )
+    parser.add_argument(
+        "-s", "--synth", type=int, help="number of synthesized transcripts", default=0
+    )
     parser.add_argument("--data", help=("add additional data"), default=None)
     args = parser.parse_args()
 
@@ -51,6 +54,7 @@ if __name__ == "__main__":
         args.pct,
         args.apostrophe,
         additional_data=args.data,
+        n_synth=args.synth,
     )
     entity_list = brand_detector.train_spacy.df_to_entity_list(df_train)
     df_test.to_json("data/preprocessed/test_data.json")

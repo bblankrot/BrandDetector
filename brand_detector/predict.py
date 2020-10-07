@@ -71,3 +71,13 @@ def preds2corrects(predictions, brands):
                 break
         corrects.append(correct)
     return corrects, acc / multimodes.shape[0]
+
+def f1score(predictions, corrects):
+    """Return F1 score of predictions, using micro average."""
+    tp = corrects.sum()
+    fp = (~corrects[predictions.apply(len) > 0]).sum()
+    fn = (~corrects[predictions.apply(len) == 0]).sum() #or N - (tp + fp), since tn = 0
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+    return f1

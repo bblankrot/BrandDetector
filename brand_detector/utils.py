@@ -1,6 +1,6 @@
 import re
 import pandas as pd
-
+from .synthesize import generate_synthetic_df
 
 def find_brands(brand, text, ignore_case=True, dehyphenate=True):
     # TODO: handle edge cases such as: LV (Liverpool Victoria),
@@ -79,7 +79,7 @@ def preprocess(df, deapostrophe=False):
     return df
 
 
-def generate_additional_data(additional_data):
+def generate_additional_data(additional_data, deapostrophe):
     df_add = pd.read_json(additional_data)
     if deapostrophe:
         for col in ["brand", "transcription"]:
@@ -97,14 +97,13 @@ def generate_lower(df_train):
     df_train_lower.index = [f"l{ind}" for ind in df_train_lower.index]
     return df_train_lower
 
-def generate_train_test_set(filename, pct, deapostrophe, additional_data=None):
+def generate_train_test_set(filename, pct, deapostrophe, additional_data=None, n_synth=0):
     df = pd.read_json(filename)
     df = preprocess(df, deapostrophe=deapostrophe)
-
     df = find_brands_in_df(df)
     df_train_test = df[
         df["brand_matches"].apply(len) > 0
-    ]  # .sample(frac=1, random_state=0)
+    ].sample(frac=1, random_state=1)
     num_rows = df_train_test.shape[0]
     num_train = int(round(num_rows * pct))
     df_train, df_test = (
@@ -113,12 +112,17 @@ def generate_train_test_set(filename, pct, deapostrophe, additional_data=None):
     )
     df_dirty = df[df["brand_matches"].apply(len) == 0].copy()
 
-    df_lower = generate_lower(df_train)
-    df_train = pd.concat([df_train, df_train_lower], axis=0)
+    # df_lower = generate_lower(df_train)
+    # df_train = pd.concat([df_train, df_lower], axis=0)
 
     if additional_data is not None:
-        df_add = generate_additional_data(additional_data)
+        df_add = generate_additional_data(additional_data, deapostrophe)
         df_train = pd.concat([df_train, df_add], axis=0)
+
+    if n_synth > 0:
+        df_synth = generate_synthetic_df(df_train, n_synth=n_synth)
+        df_synth = find_brands_in_df(df_synth)
+        df_train = pd.concat([df_train, df_synth], axis=0)
 
     seen_set = set(
         df_train["brand"].str.lower().to_numpy()
