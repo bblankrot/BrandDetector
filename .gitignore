@@ -1,7 +1,7 @@
-data/
-!data/.keep
-models/
-!models/.keep
+data/*
+!data/additional_data.json
+brand_detector/models/*
+!brand_detector/models/.keep
 notebooks/*.ipynb
 notebooks/.ipynb_checkpoints
 __pycache__/
