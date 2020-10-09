@@ -73,7 +73,12 @@ if __name__ == "__main__":
     )
     entity_list = brand_detector.train_spacy.df_to_entity_list(df_train)
     df_test.to_json(Path(args.output) / "test_data.json")
-    #df_dirty.to_json("data/preprocessed/dirty_data.json")
+
+    print(
+        "Warning: excluding {} / {} rows where brand was not found in transcription".format(
+            df_dirty.shape[0], df_dirty.shape[0] + df_test.shape[0] + df_train.shape[0]
+        )
+    )
     brand_detector.train_spacy.train_spacy(
         entity_list,
         model=args.model,

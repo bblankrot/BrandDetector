@@ -3,8 +3,11 @@ from faker import Faker
 import random
 import re
 
+
 def generate_synthetic_names(n_synth):
-    n_faker = min(round(n_synth / 2), 700)  # reduce repetitions, faker come from limited dataset
+    n_faker = min(
+        round(n_synth / 2), 700
+    )  # reduce repetitions, faker come from limited dataset
     n_gibberish = n_synth - n_faker
     synth_list = []
 
@@ -47,7 +50,7 @@ def generate_synthetic_df(df, n_synth=None):
         n_synth = round(n_rows / 10)
     else:
         n_synth = min(n_synth, n_rows)
-    
+
     synth_list = generate_synthetic_names(n_synth)
     df_synth = df[["brand", "transcription"]].sample(n_synth).copy()
 
