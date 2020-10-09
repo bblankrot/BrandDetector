@@ -2,8 +2,10 @@
 In this project, I developed a model for detecting brand names in transcribed ads using natural language processing. Digital audio advertising is a growing industry that has recently surpassed $4.5B/year, and detecting information about any given advertisement, such as the featured brand and industry, can lead to valuable insights. This is a consulting project for [Veritonic](https://www.veritonic.com), and the original training data is proprietary and therefore not available here.
 
 ## Setup
+This package can be installed either locally or using Docker.
 
-
+### Local setup
+After cloning the repository, the package can be installed by running `pip install .` in the project root folder. If you would like to utilize your GPU for faster training and inference (highly recommended), run `pip install .[cupy]` instead.
 
 ## Usage
 
