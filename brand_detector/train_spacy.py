@@ -106,7 +106,7 @@ def train_spacy(
         argmax_val = vals.argmax()
         print(
             "Best accuracy ({:.2f}) achieved at epoch {}".format(
-                vals(argmax_val), argmax_val
+                vals[argmax_val], argmax_val
             )
         )
 
