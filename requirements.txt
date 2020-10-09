@@ -1,0 +1,6 @@
+cupy-cuda==7.8.0
+faker==4.5.0
+gibberish==0.4.0
+numpy==1.19.1
+pandas==1.1.3
+spacy==2.3.2

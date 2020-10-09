@@ -11,10 +11,11 @@ import time
 import statistics
 
 from .utils import find_brands
-from .predict import predict, preds2corrects
+from .predict import predict_df, preds2corrects
 
 
 def df_to_entity_list(df):
+    """Convert found matches to the entity list form that spacy accepts."""
     train = []
     for _, row in df.iterrows():
         if not row["brand_matches"]:
@@ -26,19 +27,6 @@ def df_to_entity_list(df):
     return train
 
 
-def calculate_accuracy(df):
-    multimode = df["predictions"].apply(statistics.multimode)
-    acc = 0
-    for i, item in multimode.iteritems():
-        if not len(item):
-            continue
-        for it in item:
-            if find_brands(df["brand"][i], it):
-                acc += 1
-                break
-    return acc / df.shape[0]
-
-
 def train_spacy(
     entity_list,
     model=None,
@@ -48,7 +36,9 @@ def train_spacy(
     n_iter=30,
     val=None,
 ):
-    """Set up the pipeline and entity recognizer, and train the new entity."""
+    """Set up the pipeline and entity recognizer, and train the new entity, BRAND.
+    If a validation set is provided, compute the accuracy and save the model after
+    each epoch, returning the best model # at the end."""
     output_dir = Path(output_dir)
     if not output_dir.exists():
         output_dir.mkdir()
@@ -59,8 +49,6 @@ def train_spacy(
     else:
         nlp = spacy.blank("en")  # create blank Language class
         print("Created blank 'en' model")
-    # Add entity recognizer to model if it's not in the pipeline
-    # nlp.create_pipe works for built-ins that are registered with spaCy
     if "ner" not in nlp.pipe_names:
         ner = nlp.create_pipe("ner")
         nlp.add_pipe(ner)
@@ -99,12 +87,11 @@ def train_spacy(
             print("({:.2f} seconds)".format(cur_time - start_time))
             start_time = cur_time
 
-            # save to disk after each iteration
-            epoch_path = output_dir / "{0}_epoch_{1}".format(new_model_name, i)
-            nlp.to_disk(epoch_path)
-
             if val is not None:
-                preds = predict(nlp, val)
+                # save to disk after each iteration
+                epoch_path = output_dir / "{0}_epoch_{1}".format(new_model_name, i)
+                nlp.to_disk(epoch_path)
+                preds = predict_df(nlp, val)
                 _, val_acc = preds2corrects(preds["predictions"], preds["brand"])
                 print("Val accuracy", val_acc)
             history.append({"losses": losses, "val_accuracy": val_acc})
@@ -113,6 +100,15 @@ def train_spacy(
     nlp.meta["name"] = new_model_name  # rename model
     nlp.to_disk(output_dir / new_model_name)
     print("Saved model to", output_dir)
+
+    if val is not None:
+        vals = np.array([hist["val_accuracy"] for hist in history])
+        argmax_val = vals.argmax()
+        print(
+            "Best accuracy ({:.2f}) achieved at epoch {}".format(
+                vals(argmax_val), argmax_val
+            )
+        )
 
     with open(output_dir / new_model_name / "history.json", "w") as fp:
         json.dump(history, fp)

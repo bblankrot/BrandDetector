@@ -3,7 +3,22 @@ import statistics
 import warnings
 
 
-def predict(nlp, df):
+def predict(nlp, transcriptions):
+    if type(transcriptions) == str:
+        transcriptions = [transcriptions]
+    preds = []
+    for transcript in transcriptions:
+        doc = nlp(transcript)
+        pred = []
+        for ent in doc.ents:
+            if ent.label_ == "BRAND":
+                pred.append(ent.text)
+        preds.append(pred)
+    return preds
+
+
+def predict_df(nlp, df):
+    """Predict the entities (brands) in each transcription of a DataFrame."""
     preds = []
     for _, row in df.iterrows():
         doc = nlp(row["transcription"])
@@ -16,7 +31,8 @@ def predict(nlp, df):
     return df
 
 
-def predict_score(nlp, df, beam_width=16, beam_density=0.0001, threshold=0.2):
+def predict_df_score(nlp, df, beam_width=16, beam_density=0.0001, threshold=0.2):
+    """Predict entities using beam search, so it returns probabilities as well."""
     preds = []
     for _, row in df.iterrows():
         with nlp.disable_pipes("ner"):
@@ -37,6 +53,9 @@ def predict_score(nlp, df, beam_width=16, beam_density=0.0001, threshold=0.2):
 
 
 def equal_brands(prediction, brand):
+    """Calculate if two brands (correct and predicted) are equal, up to some allowed
+    deviations."""
+
     def inner_text(text):
         inner = text.replace("-", " ").strip().lower()
         inner = re.sub(r"\W*$", "", re.sub(r"^\W*", "", inner))
@@ -54,8 +73,10 @@ def equal_brands(prediction, brand):
 
 
 def preds2corrects(predictions, brands):
-    #check if correct prediction is one of most common
-    multimodes = predictions.apply(lambda a: [pred.lower().replace("-", " ") for pred in a])
+    """Check if correct prediction is one of most common, saving it in another column."""
+    multimodes = predictions.apply(
+        lambda a: [pred.lower().replace("-", " ") for pred in a]
+    )
     multimodes = multimodes.apply(statistics.multimode)
     acc = 0
     corrects = []
@@ -72,11 +93,15 @@ def preds2corrects(predictions, brands):
         corrects.append(correct)
     return corrects, acc / multimodes.shape[0]
 
+
 def f1score(predictions, corrects):
-    """Return F1 score of predictions, using micro average."""
+    """Return F1 score of predictions, using micro averaging.
+    Equal to 2 * accuracy / (accuracy + 1)"""
     tp = corrects.sum()
     fp = (~corrects[predictions.apply(len) > 0]).sum()
-    fn = (~corrects[predictions.apply(len) == 0]).sum() #or N - (tp + fp), since tn = 0
+    fn = (
+        ~corrects[predictions.apply(len) == 0]
+    ).sum()  # or N - (tp + fp), since tn = 0
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
     f1 = 2 * precision * recall / (precision + recall)

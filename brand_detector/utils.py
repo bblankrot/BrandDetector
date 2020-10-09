@@ -2,11 +2,9 @@ import re
 import pandas as pd
 from .synthesize import generate_synthetic_df
 
+
 def find_brands(brand, text, ignore_case=True, dehyphenate=True):
-    # TODO: handle edge cases such as: LV (Liverpool Victoria),
-    # "ashley home store" <-> "ashley homestore"
-    # "Macy's" in brand but "Macys" in string
-    # "U.S. Waterproofing" <-> "US Waterproofing"
+    """Find occurences of a given correct brand in a transcription, up to some deviations."""
     if brand == "":
         return []
     brand_d = brand.replace("-", " ") if dehyphenate else brand
@@ -35,6 +33,7 @@ def find_brands(brand, text, ignore_case=True, dehyphenate=True):
 
 
 def find_brands_in_df(df):
+    """Finds brands in each transcription and appends them as a new column."""
     df2 = df.copy()
     df2["brand_matches"] = df2.apply(
         lambda row: find_brands(row["brand"], row["transcription"]), axis=1
@@ -59,6 +58,7 @@ def temporary_credit_union_fix(row):
 
 
 def preprocess(df, deapostrophe=False):
+    """Apply preprocessing rules to clean training/val data."""
     # remove rows with no brand
     df = df[(df["brand"].notna()) & (df["brand"] != "")].copy()
     # remove dealership ranking
@@ -80,6 +80,7 @@ def preprocess(df, deapostrophe=False):
 
 
 def generate_additional_data(additional_data, deapostrophe):
+    """Add additional external dataset to training data, if it exists."""
     df_add = pd.read_json(additional_data)
     if deapostrophe:
         for col in ["brand", "transcription"]:
@@ -90,20 +91,26 @@ def generate_additional_data(additional_data, deapostrophe):
     df_add.index = [f"n{ind}" for ind in df_add.index]
     return df_add
 
+
 def generate_lower(df_train):
+    """Create copy of dataset, consisting of lowercased brands and transcriptions."""
     df_train_lower = df_train[["brand", "transcription", "brand_matches"]].copy()
     for col in ["brand", "transcription"]:
         df_train_lower[col] = df_train_lower[col].str.lower()
     df_train_lower.index = [f"l{ind}" for ind in df_train_lower.index]
     return df_train_lower
 
-def generate_train_test_set(filename, pct, deapostrophe, additional_data=None, n_synth=0, lowercase=True):
+
+def generate_train_test_set(
+    filename, pct, deapostrophe, additional_data=None, n_synth=0, lowercase=True
+):
+    """Load a dataset, apply preprocessing, and split into training and validation sets."""
     df = pd.read_json(filename)
     df = preprocess(df, deapostrophe=deapostrophe)
     df = find_brands_in_df(df)
-    df_train_test = df[
-        df["brand_matches"].apply(len) > 0
-    ].sample(frac=1, random_state=1)
+    df_train_test = df[df["brand_matches"].apply(len) > 0].sample(
+        frac=1, random_state=1
+    )
     num_rows = df_train_test.shape[0]
     num_train = int(round(num_rows * pct))
     df_train, df_test = (
