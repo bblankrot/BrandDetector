@@ -7,8 +7,8 @@ setup(
     url="https://github.com/bblankrot/BrandDetector",
     author="Boaz Blankrot",
     license="MIT",
+    packages=["brand_detector"],
     install_requires=[
-        "cupy-cuda==7.8.0",
         "faker",
         "gibberish",
         "numpy",
@@ -16,5 +16,6 @@ setup(
         "spacy==2.3.2",
         "spacy-lookups-data==0.3.2",
     ],
+    extras_require={"cupy": ["cupy==7.8.0"]},
     zip_safe=False,
 )
