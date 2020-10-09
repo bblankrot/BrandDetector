@@ -1,20 +1,43 @@
 import re
 import statistics
 import warnings
+import pandas as pd
 
 
-def predict(nlp, transcriptions):
-    if type(transcriptions) == str:
+def predict(nlp, transcriptions, brands_list=None):
+    flag_str = type(transcriptions) == str
+    if flag_str:
         transcriptions = [transcriptions]
+
+    if brands_list is not None:
+        df_brands = pd.read_csv(brands_list)
+
     preds = []
     for transcript in transcriptions:
         doc = nlp(transcript)
         pred = []
         for ent in doc.ents:
             if ent.label_ == "BRAND":
-                pred.append(ent.text)
+                brand = ent.text
+                if brands_list is not None:
+                    industry = brand2industry(brand, df_brands)
+                    pred.append((brand, industry))
+                else:
+                    pred.append(brand)
         preds.append(pred)
-    return preds
+
+    if flag_str:
+        return preds[0]
+    else:
+        return preds
+
+
+def brand2industry(brand, df_brands):
+    industries = df_brands.loc[df_brands["brand"] == brand, "industry"]
+    if industries.shape[0] == 0:
+        return ""
+    industry = industries.iloc[0]
+    return "" if pd.isna(industry) else industry
 
 
 def predict_df(nlp, df):
