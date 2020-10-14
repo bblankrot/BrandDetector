@@ -18,7 +18,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    test_data_path = Path(test_data_path)
+    test_data_path = Path(args.test_data_path)
     df_test = pd.read_json(test_data_path)
     nlp = spacy.load(args.model_path)
     if args.score:

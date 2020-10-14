@@ -44,10 +44,10 @@ def train_spacy(
     random.seed(0)
     if model is not None:
         nlp = spacy.load(model)  # load existing spaCy model
-        print("Loaded model '%s'" % model)
+        #print("Loaded model '%s'" % model)
     else:
         nlp = spacy.blank("en")  # create blank Language class
-        print("Created blank 'en' model")
+        #print("Created blank 'en' model")
     if "ner" not in nlp.pipe_names:
         ner = nlp.create_pipe("ner")
         nlp.add_pipe(ner)
