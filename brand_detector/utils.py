@@ -41,38 +41,12 @@ def find_brands_in_df(df):
     return df2
 
 
-def temporary_credit_union_fix(row):
-    if row["brand"].lower() != "credit union":
-        return row["brand"]
-    possible_unions = ["Belco", "Navy Federal", "Affinity", "Apple Federal", "Midland"]
-    for cu in possible_unions:
-        if (
-            re.search(
-                "\\b" + cu + " Credit Union\\b", row["transcription"], re.IGNORECASE
-            )
-            is not None
-        ):
-            # return only first, since this is a temporary fix, edge cases do not matter as much
-            return cu + " Credit Union"
-    return "Credit Union"
-
-
 def preprocess(df, deapostrophe=False):
     """Apply preprocessing rules to clean training/val data."""
     # remove rows with no brand
     df = df[(df["brand"].notna()) & (df["brand"] != "")].copy()
-    # remove dealership ranking
-    df.loc[:, "brand"] = df["brand"].str.replace(r"-tier[1-3]$", "", regex=True)
-    # remove incidental mistakes
-    df.loc[df["brand"] == "Zico", "brand"] = "Geico"
-    df.loc[df["brand"].str.lower() == "the home depot", "brand"] = "Home Depot"
-    df.loc[(df["brand"] == "home") & (df.index == 5019), "brand"] = "Home Depot"
-    df.loc[df["brand"] == "t", "brand"] = "T-Mobile"
     # remove leading/trailing whitespace
     df.loc[:, "brand"] = df["brand"].str.strip()
-    # temporarily hack together some credit union labels, and remove non-obvious ones
-    df.loc[:, "brand"] = df.apply(temporary_credit_union_fix, axis=1)
-    df = df[df["brand"].str.lower() != "credit union"].copy()
     if deapostrophe:
         for col in ["brand", "transcription"]:
             df.loc[:, col] = df[col].str.replace("'", "")
