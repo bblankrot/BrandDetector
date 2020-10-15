@@ -1,5 +1,5 @@
 data/*
-!data/additional_data.json
+!data/data.json
 brand_detector/models/*
 !brand_detector/models/.keep
 notebooks/*.ipynb
@@ -7,3 +7,5 @@ notebooks/.ipynb_checkpoints
 __pycache__/
 baseline_corrects.json
 .vscode/
+!notebooks/analysis.ipynb
+!notebooks/baseline_corrects.json
