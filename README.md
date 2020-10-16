@@ -7,6 +7,16 @@ This package can be installed either locally or using Docker.
 ### Local setup
 After cloning the repository, the package can be installed by running `pip install .` in the project root folder. If you would like to utilize your GPU for faster training and inference (highly recommended), run `pip install .[cupy]` instead.
 
+### Docker
+Instead of cloning and installing manually, you can pull and run a pre-built Docker image using:
+
+```
+docker pull bblankrot/branddetector
+docker run --rm -ti bblankrot/branddetector bash
+```
+
+To use a GPU with this docker image, run `pip install cupy==7.8.0`.
+
 ## Usage
 
 ### Training
