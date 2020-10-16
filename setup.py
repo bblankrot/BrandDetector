@@ -15,6 +15,8 @@ setup(
         "pandas",
         "spacy==2.3.2",
         "spacy-lookups-data==0.3.2",
+        "pytz==2020.1",
+        "python-dateutil",
     ],
     extras_require={"cupy": ["cupy==7.8.0"]},
     zip_safe=False,
