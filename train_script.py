@@ -72,7 +72,9 @@ if __name__ == "__main__":
         n_synth=args.synth,
     )
     entity_list = brand_detector.train_spacy.df_to_entity_list(df_train)
-    df_test.to_json(Path(args.output) / "test_data.json")
+    output_path = Path(args.output)
+    output_path.mkdir(parents=True, exist_ok=True)
+    df_test.to_json(output_path / "test_data.json")
 
     print(
         "Warning: excluding {} / {} rows where brand was not found in transcription".format(
