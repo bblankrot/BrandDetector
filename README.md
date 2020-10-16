@@ -62,7 +62,7 @@ Using the dataset in `data/data.json` with `lowercase=False`, we achieve the fol
 
 |          | Previously seen brands | Previously unseen brands | Total    |
 | :------- | :--------------------: | :----------------------: | :------: |
-| NER      |         0.96           |         **0.35**         | **0.62** |
+| NER      |         0.97           |         **0.35**         | **0.62** |
 | Baseline |       **0.98**         |           0.00           |   0.43   |
 
 Overall, the prediction accuracy here is lower, in part due to the higher incidence of unseen brands in the validation set. For these advertisements, the named-entity recognizer predicts the correct brand over a third of the time, in contrast to zero predictions by our baseline search.
